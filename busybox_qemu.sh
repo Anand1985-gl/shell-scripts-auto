@@ -1,9 +1,16 @@
 #!/bin/bash
 #set -x
-
+# 
+# linux-5.9
+# busybox-1.31.1
+#
+#
 
 
 launch_qemu() {
+
+echo "                                       "
+echo "========================================="
 
 STAGE=$HOME/tla
 TOP=$STAGE/teeny-linux
@@ -17,7 +24,10 @@ qemu-system-arm -M versatilepb  \
 
 make_kernel() {
 
-cd $STAGE/linux-4.10.6
+echo "                                       "
+echo "========================================="
+
+cd $STAGE/linux-*
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- O=$TOP/obj/linux-arm-versatile_defconfig -j2
 
 }
@@ -25,7 +35,11 @@ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- O=$TOP/obj/linux-arm-versatile_de
 
 config_kernel_minimal () {
 
-cd $STAGE/linux-4.10.6
+echo "                                       "
+echo "========================================="
+
+
+cd $STAGE/linux-*
 mkdir -pv $TOP/obj/linux-arm-versatile_defconfig
 cp arch/arm/configs/versatile_defconfig $TOP/obj/linux-arm-versatile_defconfig/.config
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- O=$TOP/obj/linux-arm-versatile_defconfig olddefconfig
@@ -36,6 +50,10 @@ sed -i  's/# CONFIG_EARLY_PRINTK is not set/CONFIG_EARLY_PRINTK=y/'  $TOP/obj/li
 
 
 create_initramfs() {
+
+echo "                                       "
+echo "========================================="
+
 
 cd $TOP/initramfs/arm-busybox
 find . | cpio -H newc -o > ../initramfs.cpio
@@ -49,6 +67,11 @@ cat initramfs.cpio | gzip > $TOP/obj/initramfs.igz
 
 
 create_init_file() {
+
+echo "                                       "
+echo "========================================="
+
+
 cat << EOF >> $TOP/initramfs/arm-busybox/init
 #!/bin/sh
  
@@ -69,18 +92,25 @@ chmod +x $TOP/initramfs/arm-busybox/init
 
 
 build_initramfs() {
+echo "                                       "
+echo "========================================="
+
 
 mkdir -pv $TOP/initramfs/arm-busybox
 cd $TOP/initramfs/arm-busybox
 mkdir -pv {bin,dev,sbin,etc,proc,sys/kernel/debug,usr/{bin,sbin},lib,lib64,mnt/root,root}
 cp -av $TOP/obj/busybox-arm/_install/* $TOP/initramfs/arm-busybox
-sudo cp -av /dev/{null,console,tty,sda1} $TOP/initramfs/arm-busybox/dev/
+sudo cp -av /dev/{null,console,tty} $TOP/initramfs/arm-busybox/dev/
 
 }
 
 
 
 minimal_userland() {
+
+echo "                                       "
+echo "========================================="
+
 
 cd $STAGE/busybox-*
 mkdir -pv $TOP/obj/busybox-arm
@@ -101,23 +131,54 @@ fi
 
 download_kernel_busybox ()
 {
+
+echo "                                       "
+echo "========================================="
+
+
+
 cd $STAGE
 
 if [ -d $STAGE/linux-* ];then
     echo "Kernel dir exists , skipping kernel download"
 else
-curl https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.10.6.tar.xz | tar xJf -
+	echo "getting latest Stable kernel"
+	wget https://www.kernel.org/
+	mv index.html index-kernel.html
+	x=`cat index-kernel.html | nl -b a | grep "latest_link" | sed 's/[^0-9]//g'`
+	echo $x 
+	ll=`expr $x + 1`
+	echo $ll
+
+	link_line_kernel=`cat index-kernel.html | sed -n "$ll"p | cut -d '"' -f2`
+	echo $link_line_kernel
+
+	curl $link_line_kernel  | tar xJf -
 fi
 
 if [ -d $STAGE/busybox-* ];then
 	echo " Busybox dir exists , skipping busybox download"
 else
-curl https://busybox.net/downloads/busybox-1.26.2.tar.bz2 | tar xjf -
+	echo "Getting latest stable busybox"
+	wget https://www.busybox.net/
+	x=`cat index.html | nl -b a |  grep "\-\- BusyBox" |  grep \(stable\) | head -1 | cut -d '<' -f1 | sed 's/[^0-9]//g'`
+	echo $x
+	ll=`expr $x + 1`
+        echo $ll
+	
+	link_line_busybox=`cat index.html | sed -n "$ll"p | cut -d '"' -f2`
+        echo $link_line_busybox
+
+	curl $link_line_busybox | tar xjf -
 fi
 }
 
 
 create_workarea() {
+
+echo "                                       "
+echo "========================================="
+
 
 STAGE=~/tla
 TOP=$STAGE/teeny-linux
