@@ -24,11 +24,15 @@ qemu-system-arm -M versatilepb  \
 
 make_kernel() {
 
-echo "                                       "
-echo "========================================="
+
+start=`date +%s`
 
 cd $STAGE/linux-*
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- O=$TOP/obj/linux-arm-versatile_defconfig -j2
+
+end=`date +%s`
+runtime=$((end-start))
+echo -e "time taken to compile kernel =`echo  "scale=2;$runtime/60" |  bc -l` mins \n"  2>&1 | tee -a $HOME/full-log
 
 }
 
@@ -116,12 +120,19 @@ cd $STAGE/busybox-*
 mkdir -pv $TOP/obj/busybox-arm
 make O=$TOP/obj/busybox-arm  ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- defconfig
 if [ $? == "0" ];then
-        echo "setting defconfig successfull"
-	echo "Building busybox as static "
+	start=`date +%s`
+	echo "setting defconfig successfull"
+	echo -e "Building busybox as static \n " 2>&1 | tee -a $HOME/full-log
 	sed -i  's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/'  $TOP/obj/busybox-arm/.config
 	cd $TOP/obj/busybox-arm
 	make -j2 ARCH=arm CROSS_COMPILE=arm-linux-gnueabi-
 	make ARCH=arm CROSS_COMPILE=arm-linux-gnueabi- install
+	end=`date +%s`
+
+	runtime=$((end-start))
+
+	echo -e "time taken to build userland =`echo  "scale=2;$runtime/60" |  bc -l` mins \n"  2>&1 | tee -a $HOME/full-log
+
 else
         exit 1
 fi
@@ -132,17 +143,14 @@ fi
 download_kernel_busybox ()
 {
 
-echo "                                       "
-echo "========================================="
-
-
 
 cd $STAGE
 
 if [ -d $STAGE/linux-* ];then
     echo "Kernel dir exists , skipping kernel download"
 else
-	echo "getting latest Stable kernel"
+	start=`date +%s`
+	echo -e "getting latest Stable kernel \n" 2>&1 | tee -a $HOME/full-log
 	wget https://www.kernel.org/
 	mv index.html index-kernel.html
 	x=`cat index-kernel.html | nl -b a | grep "latest_link" | sed 's/[^0-9]//g'`
@@ -154,12 +162,16 @@ else
 	echo $link_line_kernel
 
 	curl $link_line_kernel  | tar xJf -
+	end=`date +%s`
+	runtime=$((end-start))
+	echo -e "time taken to download and extract Kernel=`echo  "scale=2;$runtime/60" |  bc -l` mins \n" 2>&1 | tee -a $HOME/full-log
 fi
 
 if [ -d $STAGE/busybox-* ];then
 	echo " Busybox dir exists , skipping busybox download"
 else
-	echo "Getting latest stable busybox"
+	start=`date +%s`
+	echo -e "Getting latest stable busybox \n" 2>&1 | tee -a $HOME/full-log
 	wget https://www.busybox.net/
 	x=`cat index.html | nl -b a |  grep "\-\- BusyBox" |  grep \(stable\) | head -1 | cut -d '<' -f1 | sed 's/[^0-9]//g'`
 	echo $x
@@ -170,6 +182,9 @@ else
         echo $link_line_busybox
 
 	curl $link_line_busybox | tar xjf -
+	end=`date +%s`
+        runtime=$((end-start))
+        echo -e "time taken to download and extract busybox=`echo  "scale=2;$runtime/60" |  bc -l` mins \n" 2>&1 | tee -a $HOME/full-log
 fi
 }
 
@@ -179,10 +194,18 @@ create_workarea() {
 echo "                                       "
 echo "========================================="
 
+if [ -d $HOME/tla ];then
+	echo " tla directory already exists, deleting old  \n"
+	rm -rf $HOME/tla
+	STAGE=~/tla
+	TOP=$STAGE/teeny-linux
+	mkdir -p $STAGE
+else
+	STAGE=~/tla
+        TOP=$STAGE/teeny-linux
+        mkdir -p $STAGE
 
-STAGE=~/tla
-TOP=$STAGE/teeny-linux
-mkdir -p $STAGE
+fi
 
 }
 
@@ -213,60 +236,67 @@ fi
 
 
 #### Main function ##
-echo "welcome to busybox qemu arm" 
+echo -e  "welcome to busybox qemu arm \n" 2>&1 | tee -a $HOME/full-log 
 
-echo " ####################"
+echo -e "##################### \n" 2>&1 | tee -a  $HOME/full-log 
 
-echo " Before installing ubuntu arm toolchian , we need to run apt-get update" 
-echo " Can we run apt-get update , To run apt-get and install toolchain Enter Yes/No"
-read input 
-case $input in
+echo "Before installing ubuntu arm toolchian , we need to run apt-get update " 2>&1 | tee -a $HOME/full-log
+echo -e  "To run apt-get and install ubuntu arm  toolchain Enter Yes or No \n" 2>&1 | tee -a $HOME/full-log
+
+
+read input
+input1=`echo "${input,,}"`
+
+case $input1 in
 	yes)
 		echo "Please enter password for apt-get update"
 		read -s pass
 		update_ubuntu $pass
 		install_arm_toolchain $pass ;;
 	no)
-			echo "Not updating "
+			echo "You said no , exiting  "
 			exit 1
 			;;
+	*)
+		echo " unknow option , exiting !!!"
+		exit 1
 esac
 
 
 
-echo "Now time to setup work area "
+echo -e "Now time to setup work area \n" 2>&1 | tee -a $HOME/full-log
 
 create_workarea
 
-echo "Download kernel and bsybox"
+echo -e "Download kernel and busybox \n"  2>&1 | tee -a $HOME/full-log 
 
 download_kernel_busybox
 
-echo "Create minimal userland  busybox "
+echo -e "Create minimal userland  busybox \n"  2>&1 | tee -a $HOME/full-log 
 
 minimal_userland
 
-echo "creating initramfs structure "
+echo -e "creating initramfs structure \n"  2>&1 | tee -a $HOME/full-log 
 
 build_initramfs
 
 
-echo "Create init file and make it exectuble"
+echo -e "Create init file and make it exectuble \n"   2>&1 | tee -a $HOME/full-log 
 
 create_init_file
 
-echo " Create Initramfs "
+echo -e "Create Initramfs \n"  2>&1 | tee -a $HOME/full-log 
 
 create_initramfs
 
-echo "Config kerenl minimal "
+echo -e "Config kerenl minimal \n"  2>&1 | tee -a $HOME/full-log 
 
 config_kernel_minimal
 
-echo " Make kernel "
+echo -e "Compiling kernel \n"  2>&1 | tee -a $HOME/full-log 
 
 make_kernel
 
-echo " Launching qemu" 
+echo -e "Launching qemu \n "  2>&1 | tee -a $HOME/full-log 
 
 launch_qemu 
