@@ -1,10 +1,15 @@
 #!/bin/bash
-set -x
+#set -x
 # 
 # linux-5.9
 # busybox-1.31.1
 #
 #
+
+STAGE=~/tla
+TOP=$STAGE/teeny-linux
+tc_dir=$STAGE/tc_dir
+helper_dir=$STAGE/helper_dir
 
 
 launch_qemu() {
@@ -233,6 +238,10 @@ if [ -d $HOME/tla ];then
 	case $input1 in
         	yes)
 			rm -rf $HOME/tla
+			mkdir -p $STAGE
+        		mkdir -p $tc_dir
+        		mkdir -p $TOP
+        		mkdir -p $helper_dir
 			;;
         	no)
                         echo -e "Not deleting tla \n "
@@ -241,10 +250,7 @@ if [ -d $HOME/tla ];then
                 	echo " unknow option , exiting !!!"
                 	exit 1
 	esac
-	STAGE=~/tla
-	TOP=$STAGE/teeny-linux
-	tc_dir=$STAGE/tc_dir
-	helper_dir=$STAGE/helper_dir
+else	
 	mkdir -p $STAGE
 	mkdir -p $tc_dir
 	mkdir -p $TOP
@@ -255,6 +261,25 @@ fi
 }
 
 #### Main function ##
+if [ $# -lt 4 ] ; then
+cat << EOF >&2
+Usage: $0 -toolchain <toolchain name>  -busybox  -kernel
+
+IF no option is given for -busybox latest busybox will be downloaded
+IF no option is given for -kernel latest kernel will be downloaded
+
+versions available  for busybox and kernel
+
+-busybox 1.33.0 or 1.32.1
+-kernel  5.4.19 or 5.9
+
+Eg : $0 -toolchain linaro  -busybox 1.33.0  -kernel 5.4.19
+
+EOF
+exit 1
+fi
+
+
 echo -e  "Welcome to busybox qemu arm \n" 2>&1 | tee -a $HOME/full-log 
 
 echo -e "Now time to setup work area \n" 2>&1 | tee -a $HOME/full-log
@@ -264,7 +289,7 @@ create_workarea
 while [ -n "$1" ]
 do
         case "$1" in
-                --toolchain) echo -e "Found toolcahin option \n"
+                 -toolchain) echo -e "Found toolcahin option \n"
                         param="$2"
                         if [ $param == "linaro" ]
                         then
@@ -279,7 +304,7 @@ do
                         shift 2;;
 
 
-                --busybox)      echo -e "Busybox option \n"
+                -busybox)      echo -e "Busybox option \n"
 			param="$2"
                         if [ $param == "1.33.0" ]
                         then
@@ -287,19 +312,23 @@ do
 				wget https://www.busybox.net/downloads/busybox-1.33.0.tar.bz2
 				tar xf busybox-1.33.0.tar.bz2
 				rm busybox-1.33.0.tar.bz2
+				shift 2
                         elif [ $param == "1.32.1" ]
 			then
                                 cd $STAGE
 				wget https://www.busybox.net/downloads/busybox-1.32.1.tar.bz2
 				tar xf busybox-1.32.1.tar.bz2
 				rm busybox-1.32.1.tar.bz2
+				shift 2
 			else
                                 echo -e "Downloading latest busybox \n"
 				download_busybox_latest
+				shift
+				
                         fi
-                        shift 2;;
+                        ;;
 
-                --kernel) echo -e "Kernel option \n"
+                -kernel) echo -e "Kernel option \n"
 			param="$2"
 			if [ $param == "5.4.19" ]
                         then
@@ -307,23 +336,24 @@ do
                                 wget https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-5.4.19.tar.xz
 				tar xf linux-5.4.19.tar.xz
 				rm -rf linux-5.4.19.tar.xz
+				shift 2
                         elif [ $param == "5.9" ]
                         then
                                 cd $STAGE
                                 wget https://mirrors.edge.kernel.org/pub/linux/kernel/v5.x/linux-5.9.tar.xz
 				tar xf linux-5.9.tar.xz
 				rm -rf linux-5.9.tar.xz
+				shift 2
                         else
                                 echo -e "Downloading latest Kernel \n"
                                 download_kernel_latest
+				break
                         fi
-                        shift 2;;
+                         ;;
 
-                --)shift
-                   break;;
                 *)echo "$1 is not option"
+		  exit 1			
                 esac
-                shift
 done
 
 echo -e "Download helper artifacts \n"
