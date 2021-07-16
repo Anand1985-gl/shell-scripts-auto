@@ -81,6 +81,8 @@ cp -av $TOP/obj/busybox-arm64/_install/* $TOP/initramfs/arm-busybox
 
 minimal_userland(){
 
+cd $STAGE
+
 busybox_dir=`ls -d */ | grep busybox`
 cd $STAGE/$busybox_dir
 mkdir -pv $TOP/obj/busybox-arm64
